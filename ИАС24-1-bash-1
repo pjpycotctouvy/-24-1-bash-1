@@ -1,0 +1,78 @@
+echo "-----------------------------------------------------------"
+echo "Автор: Авдуевская Мария Алексеевна (ИАС-24)"
+echo "Программа: управление пакетами (Ubuntu)"
+echo "Описание: проверка наличия пакета через dpkg"
+echo "Если пакета нет, ищет его через apt и предлагает установить"
+echo "-----------------------------------------------------------"
+
+had_error=0
+
+while true; do
+	read -rp "> Введите имя пакета (exit для выхода): " pkg
+	
+	if [[ "$pkg" == "exit" ]]; then
+		break
+	fi
+
+	if [[ -z "$pkg" ]]; then
+		echo "Ошибка: имя пакета не может быть пустым." >&2
+		had_error=1
+		continue
+	fi
+
+	if dpkg -s "$pkg" &>/dev/null; then
+		echo "> Пакет '$pkg' УСТАНОВЛЕН. Информация:"
+		dpkg -s "$pkg" | grep -E "Package|Version|Status|Description"
+	else
+		echo "Пакет '$pkg' НЕ установлен. Ищем в репозиториях..."
+
+		if apt-cache show "$pkg" &>/dev/null; then
+			echo "Пакет найден в репозиториях"
+			read -rp "> Хотите установить пакет? (y/n) " ans
+			case "$ans" in
+				y|Y)
+					echo "Установка пакета '$pkg'..."
+					if sudo apt-get install -y "$pkg"; then
+						echo "Пакет успешно установлен"
+					else
+						echo " > Ошибка при установке пакета." >&2
+						had_error=1
+					fi
+					;;
+				n|N)
+					echo "Установка отменена."
+					;;
+				*)
+					echo "> Ошибка: некорректный ввод. Ожидалось y или n." >&2
+					had_error=1
+					;;
+				esac
+			else
+				echo "Ошибка: Пакет '$pkg' не найден ни в системе, ни в рипозиториях." >&2
+				had_error=1
+			fi
+		fi
+	while true; do
+		read -rp "Хотите продолжить работу? (y/n): " cont
+		case "$cont" in
+			y|Y) break ;;
+			n|N)
+				if [[ $had_error -eq 1 ]]; then
+					echo "> Завершение работы (были ошибки). Код 321."
+					exit 321
+				fi
+				echo "Завершение работы."
+				exit 0
+				;;
+			*)
+				echo "> Ошибка: введите y или n." >&2
+				;;
+		esac
+	done
+done
+
+if [[ $had_error -eq 1 ]]; then
+	exit 321
+fi
+exit 0
+
